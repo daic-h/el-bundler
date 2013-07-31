@@ -1,6 +1,6 @@
 ;;; deferred-ext.el
 
-;; Copyright (C) 2012  Daichi Hirata
+;; Copyright (C) 2013  Daichi Hirata
 
 ;; Version: 0.0.1
 
@@ -22,12 +22,11 @@
                          (file-name-directory (or load-file-name buffer-file-name))))
 (require 'concurrent)
 
-(defun deferred:trindle:process (proc-dir command &rest args)
-  (deferred:trindle:process-gen 'start-process proc-dir command args))
+(defun deferred:process:ext (proc-dir command &rest args)
+  (deferred:process-gen:ext 'start-process proc-dir command args))
 
-(defun deferred:trindle:process-gen (f proc-dir command args)
-  (lexical-let
-      ((pd (deferred:trindle:process-buffer-gen f proc-dir command args)) d)
+(defun deferred:process-gen:ext (f proc-dir command args)
+  (lexical-let ((pd (deferred:process-buffer-gen:ext f proc-dir command args)) d)
     (setq d (deferred:nextc pd
               (lambda (buf)
                 (prog1
@@ -39,7 +38,7 @@
             (deferred:default-cancel pd)))
     d))
 
-(defun deferred:trindle:process-buffer-gen (f proc-dir command args)
+(defun deferred:process-buffer-gen:ext (f proc-dir command args)
   (let ((d (deferred:next)) (uid (deferred:uid)))
     (lexical-let
         ((f f) (proc-dir proc-dir) (command command) (args args)
@@ -79,9 +78,9 @@
             nil)))
         nd)))
 
-(defmacro deferred:trindle:processc (d proc-dir command &rest args)
+(defmacro deferred:processc:ext (d proc-dir command &rest args)
   "Process chain of `deferred:process'."
   `(deferred:nextc ,d
-    (lambda (,(gensym)) (deferred:trindle:process ,proc-dir ,command ,@args))))
+     (lambda (,(gensym)) (deferred:process:ext ,proc-dir ,command ,@args))))
 
 (provide 'deferred-ext)
