@@ -15,6 +15,9 @@
 (defvar el-bundler-buffer-init "*el-bundler:initialize*")
 (defvar el-bundler-buffer-cmd  "*el-bundler:command*")
 
+(defvar el-bundler-display-function 'display-buffer)
+(defvar el-bundler-show-result t)
+
 (defconst el-bundler-packages nil)
 (defconst el-bundler-method-table (make-hash-table))
 (defconst el-bundler-github-url-format "https://github.com/%s.git")
@@ -45,6 +48,7 @@
   (setq el-bundler-directory dir
         el-bundler-process-num process-num))
 
+
 ;; Buffer
 (defun el-bundler:init-message (&rest string)
   (el-bundler:message el-bundler-buffer-init (apply 'format string)))
@@ -58,8 +62,13 @@
 
 (defun el-bundler:message (buffer-name string)
   (with-current-buffer (get-buffer-create buffer-name)
-    (goto-char (point-max))
-    (insert (concat string "\n"))))
+    (save-excursion
+      (goto-char (point-max))
+      (insert (concat string "\n")))))
+
+(defun el-bundler:display-function ()
+  (when el-bundler-show-result
+    (funcall el-bundler-display-function el-bundler-buffer-cmd)))
 
 
 ;; Progress
@@ -85,9 +94,10 @@
 
 (defun el-bundler:progress-message (&rest string)
   (with-current-buffer (get-buffer-create el-bundler-buffer-cmd)
-    (goto-char (point-min))
-    (unless (= 1 (point-max)) (kill-whole-line))
-    (insert (concat (apply 'format string) "\n"))))
+    (save-excursion
+      (goto-char (point-min))
+      (unless (= 1 (point-max)) (kill-whole-line))
+      (insert (concat (apply 'format string) "\n")))))
 
 
 ;; Package
@@ -265,12 +275,8 @@
     (el-bundler:clear-buffer)
     (el-bundler:progress-set (length task-list))
     (loop for task in task-list
-          do (cc:semaphore-with semaphore task))))
-
-(defun el-bundler:install! ()
-  (interactive)
-  (el-bundler:clear)
-  (el-bundler:install))
+          do (cc:semaphore-with semaphore task)))
+  (el-bundler:display-function))
 
 (defun el-bundler:update ()
   (interactive)
@@ -282,7 +288,8 @@
     (if (el-bundler:package-exists-p name)
         (el-bundler:package-exec package :update)
       (el-bundler:progress-inc)
-      (el-bundler:cmd-message "[NG] Package: %s is not found." name))))
+      (el-bundler:cmd-message "[NG] Package: %s is not found." name)))
+  (el-bundler:display-function))
 
 (defun el-bundler:update-all ()
   (interactive)
@@ -291,7 +298,8 @@
     (el-bundler:clear-buffer)
     (el-bundler:progress-set (length task-list))
     (loop for task in task-list
-          do (cc:semaphore-with semaphore task))))
+          do (cc:semaphore-with semaphore task)))
+  (el-bundler:display-function))
 
 (defun el-bundler:remove ()
   (interactive)
@@ -303,7 +311,8 @@
     (if package
         (el-bundler:remove-packages (list name))
       (el-bundler:progress-inc)
-      (el-bundler:cmd-message "[NG] Package: %s is not found." name))))
+      (el-bundler:cmd-message "[NG] Package: %s is not found." name)))
+  (el-bundler:display-function))
 
 (defun el-bundler:clear ()
   (interactive)
@@ -312,5 +321,10 @@
       (el-bundler:clear-buffer)
       (el-bundler:progress-set (length unnecessary-packages))
       (el-bundler:remove-packages unnecessary-packages))))
+
+(defun el-bundler:install! ()
+  (interactive)
+  (el-bundler:clear)
+  (el-bundler:install))
 
 (provide 'el-bundler)
