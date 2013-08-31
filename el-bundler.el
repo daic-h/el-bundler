@@ -320,11 +320,14 @@
     (when unnecessary-packages
       (el-bundler:clear-buffer)
       (el-bundler:progress-set (length unnecessary-packages))
-      (el-bundler:remove-packages unnecessary-packages))))
+      (el-bundler:remove-packages unnecessary-packages)))
+  (el-bundler:display-function))
 
 (defun el-bundler:install! ()
   (interactive)
-  (el-bundler:clear)
-  (el-bundler:install))
+  (let ((el-bundler-show-result nil))
+    (el-bundler:clear)
+    (el-bundler:install))
+  (el-bundler:display-function))
 
 (provide 'el-bundler)
