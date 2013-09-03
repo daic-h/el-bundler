@@ -1,19 +1,37 @@
-;; (el-bundler:initialize)
-;; (el-bundler:install)
-;; (el-bundler:update)
-;; (el-bundler:update-all)
-;; (el-bundler:remove)
-;; (el-bundler:clear)
+;;; el-bunder --- description...
+
+;; Copyright (C) 2013 by Daichi HIRATA
+
+;; Author: Daichi HIRATA <daichi.hirat@gmail.com>
+;; Version: 0.01
+;; Package-Requires: ((concurrent))
+
+;; This program is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
+;;; Code:
 
 (eval-when-compile (require 'cl))
 (require 'dired)
-(require 'deferred-ext)
+(require 'concurrent)
 
 (defvar el-bundler-directory "~/.emacs.d/elisp-bundle")
 
 (defvar el-bundler-process-num 3)
-(defvar el-bundler-buffer-init "*el-bundler:initialize*")
-(defvar el-bundler-buffer-cmd  "*el-bundler:command*")
+(defvar el-bundler-buffer-init "*ElBundler:Initialize*")
+(defvar el-bundler-buffer-cmd  "*ElBundler:Command*")
 
 (defvar el-bundler-display-function 'display-buffer)
 (defvar el-bundler-show-result t)
@@ -83,7 +101,9 @@
 (defun el-bundler:progress-update ()
   (let* ((numer (car el-bundler-counter))
          (denom (cdr el-bundler-counter))
-         (title (if (= numer denom) "Complete" "Running"))
+         (title (if (= numer denom)
+                    "Complete"
+                  "Running"))
          (bar (el-bundler:progress-calc-bar numer denom)))
     (el-bundler:progress-message "%s: %s %s/%s" title bar numer denom)))
 
@@ -181,11 +201,11 @@
 (defun el-bundler:async-byte-compile (package-dir)
   (el-bundler:async-exec "el-bundler:byte-compile" package-dir))
 
-(defun el-bundler:async-exec (func-name default-dir)
+(defun el-bundler:async-exec (func-name default-directory)
   (lexical-let ((el-bundler-directory (symbol-file 'el-bundler:async-exec)))
-    (deferred:process:ext default-dir
+    (deferred:process
       "emacs" "-batch"
-      "--eval" (format "(setq default-directory %S)" default-dir)
+      "--eval" (format "(setq default-directory %S)" default-directory)
       "--eval" (format "(setq load-path (append '%S load-path)))" load-path)
       "-L" (file-name-directory el-bundler-directory)
       "-l" (file-name-sans-extension el-bundler-directory)
@@ -228,34 +248,36 @@
       (el-bundler:progress-inc)
       (el-bundler:cmd-message "[-] Package %s:%s Exist." name branch))
      (t
-      (deferred:$
-        (deferred:process:ext (el-bundler:dir)
-          "git" "--no-pager" "clone" "--recursive" "-b" branch url)
-        (deferred:nextc it
-          (lambda () (el-bundler:async-byte-compile dir)))
-        (deferred:nextc it
-          (lambda () (el-bundler:cmd-message "[OK] Package %s:%s Installed." name branch)))
-        (deferred:error it
-          (lambda (err) (el-bundler:cmd-message "[NG] Package %s:%s Install Failure.\n %s" name branch err)))
-        (deferred:watch it
-          (lambda () (el-bundler:progress-inc))))))))
+      (let ((default-directory (el-bundler:dir)))
+        (deferred:$
+          (deferred:process
+            "git" "--no-pager" "clone" "--recursive" "-b" branch url)
+          (deferred:nextc it
+            (lambda () (el-bundler:async-byte-compile dir)))
+          (deferred:nextc it
+            (lambda () (el-bundler:cmd-message "[OK] Package %s:%s Installed." name branch)))
+          (deferred:error it
+            (lambda (err) (el-bundler:cmd-message "[NG] Package %s:%s Install Failure.\n %s" name branch err)))
+          (deferred:watch it
+            (lambda () (el-bundler:progress-inc)))))))))
 
 (defun el-bundler:git-pull (package)
   (lexical-let* ((url    (plist-get package :url))
                  (name   (el-bundler:package-name url))
                  (dir    (el-bundler:package-path name))
                  (branch (el-bundler:plist-get package :branch "master")))
-    (deferred:$
-      (deferred:process:ext dir
-        "git" "--no-pager" "pull" "--recurse-submodules")
-      (deferred:nextc it
-        (lambda () (el-bundler:async-byte-compile dir)))
-      (deferred:nextc it
-        (lambda () (el-bundler:cmd-message "[OK] Package %s:%s Updated." name branch)))
-      (deferred:error it
-        (lambda (err) (el-bundler:cmd-message "[NG] Package %s:%s Updated Failuer.\n %s" name branch err)))
-      (deferred:watch it
-        (lambda () (el-bundler:progress-inc))))))
+    (let ((default-directory dir))
+      (deferred:$
+        (deferred:process
+          "git" "--no-pager" "pull" "--recurse-submodules")
+        (deferred:nextc it
+          (lambda () (el-bundler:async-byte-compile dir)))
+        (deferred:nextc it
+          (lambda () (el-bundler:cmd-message "[OK] Package %s:%s Updated." name branch)))
+        (deferred:error it
+          (lambda (err) (el-bundler:cmd-message "[NG] Package %s:%s Updated Failuer.\n %s" name branch err)))
+        (deferred:watch it
+          (lambda () (el-bundler:progress-inc)))))))
 
 (el-bundler:regist-type :git
  :install #'el-bundler:git-clone

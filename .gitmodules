@@ -1,3 +1,3 @@
-[submodule "emacs-deferred"]
-	path = emacs-deferred
-	url = https://github.com/daic-h/emacs-deferred.git
+[submodule "lib/emacs-deferred"]
+	path = lib/emacs-deferred
+	url = https://github.com/kiwanami/emacs-deferred.git

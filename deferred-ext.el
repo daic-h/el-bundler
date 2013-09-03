@@ -18,7 +18,7 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (add-to-list 'load-path (expand-file-name
-                         "emacs-deferred"
+                         "lib/emacs-deferred"
                          (file-name-directory (or load-file-name buffer-file-name))))
 (require 'concurrent)
 
